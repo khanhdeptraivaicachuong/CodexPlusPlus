@@ -12,11 +12,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import requests
+
 from codex_session_delete import cdp
 from codex_session_delete.app_paths import resolve_codex_app_dir
 from codex_session_delete.api_adapter import ApiAdapter, UnavailableApiAdapter
 from codex_session_delete.backup_store import BackupStore
-from codex_session_delete.cdp import evaluate_user_scripts, inject_file, open_devtools
+from codex_session_delete.cdp import evaluate_script, evaluate_user_scripts, inject_file, open_devtools
 from codex_session_delete.helper_server import HelperServer
 from codex_session_delete.helper_server import fetch_ad_list
 from codex_session_delete.markdown_exporter import MarkdownExportService
@@ -67,6 +69,12 @@ class ApiFirstDeleteService:
 
 
 class InjectedHelperServer(HelperServer):
+    bridge_socket: Any = None
+
+
+@dataclass
+class AttachedHelperServer:
+    port: int
     bridge_socket: Any = None
 
 
@@ -297,7 +305,32 @@ def start_helper(service, export_service: MarkdownExportService | None = None, h
     return server
 
 
+def helper_health_ok(port: int, host: str = "127.0.0.1") -> bool:
+    try:
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(f"http://{host}:{port}/health", timeout=1)
+        response.raise_for_status()
+        return bool(response.json().get("ok"))
+    except Exception:
+        return False
+
+
+def start_or_attach_helper(
+    service,
+    export_service: MarkdownExportService | None = None,
+    host: str = "127.0.0.1",
+    port: int = 57321,
+) -> HelperServer | AttachedHelperServer:
+    if helper_health_ok(port, host):
+        _log_runtime_event(f"attached existing helper host={host} port={port}")
+        return AttachedHelperServer(port)
+    return start_helper(service, export_service, host, port)
+
+
 def shutdown_helper(server: HelperServer) -> None:
+    if isinstance(server, AttachedHelperServer):
+        return
     server.shutdown()
     server.server_close()
 
@@ -323,13 +356,60 @@ def inject_with_retry(
             )
             runtime.websocket_url = injection.websocket_url
             evaluate_user_scripts(injection.websocket_url, runtime.user_scripts.build_enabled_bundle())
+            _log_runtime_event(f"injected renderer bridge debug_port={debug_port} helper_port={helper_port}")
             return injection.bridge_socket or injection.result
         except Exception as exc:
             last_error = exc
+            _log_runtime_event(f"injection attempt failed debug_port={debug_port} helper_port={helper_port}: {exc}")
             time.sleep(delay)
     if last_error is not None:
         raise last_error
     raise RuntimeError("Codex injection failed")
+
+
+def start_bridge_watchdog(
+    debug_port: int,
+    script_path: Path,
+    helper_port: int,
+    service: ApiFirstDeleteService,
+    export_service: MarkdownExportService,
+    runtime: CodexPlusRuntime,
+    interval: float = 5.0,
+) -> threading.Thread:
+    def watch() -> None:
+        while True:
+            time.sleep(interval)
+            check_and_reinject_bridge(debug_port, script_path, helper_port, service, export_service, runtime)
+
+    thread = threading.Thread(target=watch, daemon=True)
+    thread.start()
+    return thread
+
+
+def check_and_reinject_bridge(
+    debug_port: int,
+    script_path: Path,
+    helper_port: int,
+    service: ApiFirstDeleteService,
+    export_service: MarkdownExportService,
+    runtime: CodexPlusRuntime,
+) -> bool:
+    websocket_url = runtime.websocket_url
+    if not websocket_url:
+        return False
+    try:
+        result = evaluate_script(websocket_url, "typeof window.__codexSessionDeleteBridge === 'function'")
+        if result.get("result", {}).get("result", {}).get("value"):
+            return False
+        _log_runtime_event(f"renderer bridge missing; reinjecting debug_port={debug_port} helper_port={helper_port}")
+    except Exception as exc:
+        _log_runtime_event(f"bridge health check failed; reinjecting debug_port={debug_port} helper_port={helper_port}: {exc}")
+    try:
+        inject_with_retry(debug_port, script_path, helper_port, service, export_service, runtime, attempts=3, delay=0.5)
+        return True
+    except Exception as exc:
+        _log_runtime_event(f"bridge reinjection failed debug_port={debug_port} helper_port={helper_port}: {exc}")
+        return False
 
 
 def launch_and_inject(app_dir: Path | None, db_path: Path | None, backup_dir: Path, debug_port: int, helper_port: int) -> tuple[HelperServer, Any]:
@@ -349,11 +429,12 @@ def launch_and_inject(app_dir: Path | None, db_path: Path | None, backup_dir: Pa
         sync_result = run_provider_sync()
         if sync_result.status == ProviderSyncStatus.SKIPPED:
             print(f"Provider sync skipped: {sync_result.message}")
-    server = start_helper(service, export_service, port=helper_port)
+    server = start_or_attach_helper(service, export_service, port=helper_port)
     codex_proc = None
     try:
         codex_proc = launch_codex_app(resolved_app_dir, debug_port)
         server.bridge_socket = inject_with_retry(debug_port, script_path, server.port, service, export_service, runtime)
+        start_bridge_watchdog(debug_port, script_path, server.port, service, export_service, runtime)
         return server, codex_proc
     except Exception:
         shutdown_helper(server)
@@ -379,6 +460,15 @@ def launch_and_inject(app_dir: Path | None, db_path: Path | None, backup_dir: Pa
             except (OSError, subprocess.SubprocessError):
                 pass
         raise
+
+
+def _log_runtime_event(message: str) -> None:
+    try:
+        from codex_session_delete.cli import log_runtime_event
+
+        log_runtime_event(message)
+    except Exception:
+        pass
 
 
 def handle_bridge_request(

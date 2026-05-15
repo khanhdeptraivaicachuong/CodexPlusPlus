@@ -5,8 +5,10 @@ import os
 import subprocess
 import sys
 import traceback
+from datetime import datetime
 from pathlib import Path
 
+from codex_session_delete.cdp import list_targets, pick_page_target
 from codex_session_delete.helper_server import HelperServer
 from codex_session_delete.installers import InstallOptions, install_codex_plus_plus, uninstall_codex_plus_plus
 from codex_session_delete.launcher import launch_and_inject, shutdown_helper
@@ -68,10 +70,21 @@ def launch_log_path() -> Path:
     return Path.home() / ".codex-session-delete" / "launcher.log"
 
 
+def log_runtime_event(message: str) -> None:
+    path = launch_log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{timestamp}] {message}\n")
+
+
 def log_launch_failure(exc: BaseException) -> None:
     path = launch_log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), encoding="utf-8")
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{timestamp}] launch failed\n")
+        handle.write("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
 
 
 def wait_for_windows_process_id(process_id: int) -> None:
@@ -98,14 +111,15 @@ def wait_for_windows_process_id(process_id: int) -> None:
         kernel32.CloseHandle(handle)
 
 
-def wait_for_shutdown(server: HelperServer, codex_proc) -> None:
+def wait_for_shutdown(server: HelperServer, codex_proc, debug_port: int = 9229) -> None:
     try:
         if isinstance(codex_proc, int):
             wait_for_windows_process_id(codex_proc)
         elif codex_proc is None and sys.platform == "darwin":
             import time as _time
             while True:
-                if not is_macos_codex_running():
+                if not is_macos_codex_running(debug_port):
+                    log_runtime_event(f"macOS Codex liveness check failed debug_port={debug_port}")
                     break
                 _time.sleep(2)
         elif codex_proc is not None:
@@ -116,9 +130,21 @@ def wait_for_shutdown(server: HelperServer, codex_proc) -> None:
         shutdown_helper(server)
 
 
-def is_macos_codex_running() -> bool:
+def is_macos_codex_running(debug_port: int = 9229) -> bool:
+    return is_codex_cdp_page_available(debug_port) or is_macos_codex_process_running()
+
+
+def is_codex_cdp_page_available(debug_port: int = 9229) -> bool:
+    try:
+        pick_page_target(list_targets(debug_port))
+        return True
+    except Exception:
+        return False
+
+
+def is_macos_codex_process_running() -> bool:
     result = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True, check=False)
-    return any("/Codex.app/Contents/MacOS/Codex " in f"{line} " for line in result.stdout.splitlines())
+    return any(".app/Contents/MacOS/Codex " in f"{line} " for line in result.stdout.splitlines())
 
 
 def stop_existing_windows_launchers() -> None:
@@ -156,7 +182,7 @@ def run_launch(args: argparse.Namespace) -> int:
         raise
     print(f"Codex session delete helper running on http://127.0.0.1:{server.port}")
     print("Keep this terminal open while using the delete buttons. Press Ctrl+C to stop.")
-    wait_for_shutdown(server, codex_proc)
+    wait_for_shutdown(server, codex_proc, args.debug_port)
     return 0
 
 
