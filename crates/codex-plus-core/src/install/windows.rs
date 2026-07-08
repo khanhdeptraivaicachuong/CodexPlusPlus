@@ -46,7 +46,7 @@ pub fn build_windows_entrypoint_plan(options: &InstallOptions) -> WindowsEntrypo
             .to_string_lossy()
             .to_string(),
         manager_shortcut: install_root
-            .join("Codex++ 管理工具.lnk")
+            .join("Codex++ Manager.lnk")
             .to_string_lossy()
             .to_string(),
         install_root: install_root.to_string_lossy().to_string(),
@@ -69,6 +69,7 @@ pub fn install_shortcuts(options: &InstallOptions) -> anyhow::Result<()> {
     let plan = build_windows_entrypoint_plan(options);
     let install_root = PathBuf::from(&plan.install_root);
     std::fs::create_dir_all(&install_root)?;
+    remove_legacy_shortcuts(&install_root);
     create_entrypoint_shortcut(
         PathBuf::from(&plan.silent_shortcut),
         PathBuf::from(&plan.launcher_path),
@@ -84,6 +85,18 @@ pub fn install_shortcuts(options: &InstallOptions) -> anyhow::Result<()> {
     register_url_protocol(&plan.manager_path)?;
     write_uninstall_registration(&plan)?;
     Ok(())
+}
+
+#[cfg(windows)]
+fn remove_legacy_shortcuts(install_root: &Path) {
+    for name in [
+        "Codex++ 管理工具.lnk",
+        "Codex++ 绠＄悊宸ュ叿.lnk",
+        "Uninstall Codex++.lnk",
+        "卸载 Codex++.lnk",
+    ] {
+        let _ = std::fs::remove_file(install_root.join(name));
+    }
 }
 
 #[cfg(windows)]

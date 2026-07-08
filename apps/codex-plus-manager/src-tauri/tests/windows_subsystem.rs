@@ -110,6 +110,11 @@ fn windows_binaries_request_administrator_privileges() {
     assert!(windows_manifest.contains("requireAdministrator"));
     assert!(windows_manifest.contains("Microsoft.Windows.Common-Controls"));
     assert!(windows_installer.contains("RequestExecutionLevel admin"));
+    assert!(windows_installer.contains("CreateShortcut \"$DESKTOP\\Codex++ Manager.lnk\""));
+    assert!(windows_installer.contains("CreateShortcut \"$SMPROGRAMS\\Codex++\\Codex++ Manager.lnk\""));
+    assert!(windows_installer.contains("CreateShortcut \"$SMPROGRAMS\\Codex++\\Uninstall Codex++.lnk\""));
+    assert!(!windows_installer.contains("CreateShortcut \"$DESKTOP\\Codex++ 管理工具.lnk\""));
+    assert!(!windows_installer.contains("CreateShortcut \"$SMPROGRAMS\\Codex++\\卸载 Codex++.lnk\""));
 }
 
 #[test]
@@ -159,8 +164,11 @@ fn macos_packager_hides_silent_launcher_but_not_manager() {
         "create_app \"Codex++\" \"CodexPlusPlus\" \"$BINARY_DIR/codex-plus-plus\" \"com.bigpizzav3.codexplusplus\" \"true\""
     ));
     assert!(script.contains(
-        "create_app \"Codex++ 管理工具\" \"CodexPlusPlusManager\" \"$BINARY_DIR/codex-plus-plus-manager\" \"com.bigpizzav3.codexplusplus.manager\" \"false\""
+        "create_app \"Codex++ Manager\" \"CodexPlusPlusManager\" \"$BINARY_DIR/codex-plus-plus-manager\" \"com.bigpizzav3.codexplusplus.manager\" \"false\""
     ));
+    assert!(script.contains("sign_app \"$STAGE/Codex++ Manager.app\""));
+    assert!(script.contains("verify_app \"$STAGE/Codex++ Manager.app\""));
+    assert!(!script.contains("create_app \"Codex++ 管理工具\""));
 }
 
 #[test]

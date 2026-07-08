@@ -90,7 +90,7 @@ export function buildModelWindows(modelList: string, modelWindowsText: string): 
   if (models.length !== windows.length) {
     return {
       ok: false,
-      error: `模型名称有 ${models.length} 行，上下文窗口有 ${windows.length} 行，请保持行数一致。`,
+      error: `Danh sách model có ${models.length} dòng, cửa sổ ngữ cảnh có ${windows.length} dòng; hãy giữ số dòng khớp nhau.`,
     };
   }
   return { ok: true, modelWindows: modelWindowsTextToMap(modelList, modelWindowsText) };

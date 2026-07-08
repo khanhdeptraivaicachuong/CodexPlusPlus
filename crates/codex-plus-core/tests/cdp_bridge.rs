@@ -131,14 +131,14 @@ fn injection_script_times_out_backend_bridge_calls_and_falls_back_to_helper() {
 fn injection_script_explains_plugin_patch_is_unneeded_in_relay_mode() {
     let script = assets::injection_script(57321);
 
-    assert!(script.contains("兼容增强模式下无需开启"));
+    assert!(script.contains("Không cần bật trong chế độ tương thích"));
 }
 
 #[test]
 fn injection_script_menu_exposes_marketplace_plugin_switch_only() {
     let script = assets::injection_script(57321);
 
-    assert!(script.contains("插件市场解锁"));
+    assert!(script.contains("Mở khóa chợ plugin"));
     assert!(script.contains("data-codex-plus-setting=\"pluginMarketplaceUnlock\""));
     assert!(!script.contains("特殊插件强制安装"));
     assert!(!script.contains("data-codex-plus-setting=\"forcePluginInstall\""));
@@ -489,7 +489,7 @@ fn injection_script_exposes_conversation_view_width_control() {
     assert!(script.contains("conversationView: false"));
     assert!(script.contains("conversationView"));
     assert!(script.contains("conversationViewMaxWidth"));
-    assert!(script.contains("对话居中宽度"));
+    assert!(script.contains("Độ rộng hội thoại căn giữa"));
     assert!(script.contains("data-codex-plus-conversation-view-width"));
     assert!(script.contains("conversationViewWidth()"));
     assert!(script.contains("normalizeConversationViewWidth"));
@@ -501,7 +501,7 @@ fn injection_script_exposes_sidebar_thread_id_badge_control() {
 
     assert!(script.contains("threadIdBadge: false"));
     assert!(script.contains("threadIdBadge: \"codexAppThreadIdBadge\""));
-    assert!(script.contains("会话 ID 标识"));
+    assert!(script.contains("Nhãn ID phiên"));
     assert!(script.contains("data-codex-plus-setting=\"threadIdBadge\""));
     assert!(script.contains("codex-thread-id-badge"));
     assert!(script.contains("data-codex-thread-id-badge-wrap=\"true\""));
@@ -651,10 +651,10 @@ fn injection_script_exposes_fast_service_tier_control() {
     assert!(script.contains("codexServiceTierBadgeWired"));
     assert!(script.contains("setAttribute(\"role\", \"button\")"));
     assert!(script.contains("setAttribute(\"tabindex\", \"0\")"));
-    assert!(script.contains("继承 config.toml"));
+    assert!(script.contains("Kế thừa config.toml"));
     assert!(script.contains("service_tier=\\\"priority\\\""));
-    assert!(script.contains("Fast 仅支持"));
-    assert!(script.contains("当前 thread"));
+    assert!(script.contains("Fast chỉ hỗ trợ"));
+    assert!(script.contains("Thread hiện tại"));
     assert!(script.contains("standard"));
     assert!(script.contains("fast"));
 }
