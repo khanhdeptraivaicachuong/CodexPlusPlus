@@ -68,7 +68,7 @@ import {
   serializeModelWindowRows,
   type ModelWindowRow,
 } from "./model-windows";
-import { getLanguage, t, tf, toggleLanguage } from "@/i18n";
+import { getLanguage, languageButtonTitle, t, tf, toggleLanguage } from "@/i18n";
 
 type Status = "ok" | "failed" | "not_implemented" | "not_checked" | string;
 
@@ -730,6 +730,10 @@ const defaultSettings: BackendSettings = {
 };
 
 export function App() {
+  useEffect(() => {
+    document.title = t("Codex++ 管理工具");
+  }, []);
+
   const [theme, setTheme] = useState<Theme>(() => loadInitialTheme());
   const [route, setRoute] = useState<Route>(() => loadInitialRoute());
   const [notice, setNotice] = useState<{ title: string; message: string; status?: Status } | null>(null);
@@ -2070,7 +2074,7 @@ export function App() {
             <Button
               onClick={() => toggleLanguage()}
               size="icon"
-              title={getLanguage() === "en" ? t("切换到中文") : t("切换到英文")}
+              title={languageButtonTitle()}
               variant="outline"
             >
               <Languages className="h-4 w-4" />

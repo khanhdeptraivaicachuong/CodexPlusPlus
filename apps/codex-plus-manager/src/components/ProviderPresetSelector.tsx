@@ -39,7 +39,7 @@ const initialFor = (name: string): string => {
 
 export function createPresetPatch(preset: ProviderPreset): PresetPatch {
   return {
-    name: preset.name,
+    name: t(preset.name),
     baseUrl: preset.baseUrl,
     upstreamBaseUrl: preset.baseUrl,
     protocol: preset.protocol,
@@ -164,8 +164,8 @@ function PresetButton({
       title={`${preset.websiteUrl ?? ""}\n${preset.baseUrl}`}
       type="button"
     >
-      <span className="preset-btn-icon">{initialFor(preset.name)}</span>
-      <span className="preset-btn-name">{preset.name}</span>
+      <span className="preset-btn-icon">{initialFor(t(preset.name))}</span>
+      <span className="preset-btn-name">{t(preset.name)}</span>
       <span className="preset-btn-model">{preset.model}</span>
     </button>
   );
