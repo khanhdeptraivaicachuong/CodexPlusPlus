@@ -6,7 +6,7 @@ pub mod macos;
 pub mod windows;
 
 pub const SILENT_NAME: &str = "Codex++";
-pub const MANAGER_NAME: &str = "Codex++ 管理工具";
+pub const MANAGER_NAME: &str = "Codex++ Manager";
 pub const SILENT_BINARY: &str = "codex-plus-plus";
 pub const MANAGER_BINARY: &str = "codex-plus-plus-manager";
 
@@ -72,11 +72,11 @@ impl ShortcutState {
 }
 
 pub fn shortcut_names() -> (&'static str, &'static str) {
-    ("Codex++.lnk", "Codex++ 管理工具.lnk")
+    ("Codex++.lnk", "Codex++ Manager.lnk")
 }
 
 pub fn app_bundle_names() -> (&'static str, &'static str) {
-    ("Codex++.app", "Codex++ 管理工具.app")
+    ("Codex++.app", "Codex++ Manager.app")
 }
 
 pub fn inspect_entrypoints() -> EntryPointState {
