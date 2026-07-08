@@ -5,6 +5,7 @@
 
 // Plain strings: t("中文") -> EN_PLAIN["中文"].
 export const EN_PLAIN: Record<string, string> = {
+  "JOJO Code 包月": "JOJO Code Monthly",
   "Codex++ 管理工具": "Codex++ Manager",
   "小米 MiMo": "Xiaomi MiMo",
   "百度千帆 Coding Plan": "Baidu Qianfan Coding Plan",
